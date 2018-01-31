@@ -605,7 +605,9 @@ public class AddressBook {
         System.out.print(LINE_PREFIX + "Enter command: ");
         String inputLine = SCANNER.nextLine();
         // silently consume all blank and comment lines
-        while (inputLine.trim().isEmpty() || inputLine.trim().charAt(0) == INPUT_COMMENT_MARKER) {
+        boolean isEmptyLine = inputLine.trim().isEmpty();
+        boolean isCommentLine = inputLine.trim().charAt(0) == INPUT_COMMENT_MARKER;
+        while (isEmptyLine || isCommentLine) {
             inputLine = SCANNER.nextLine();
         }
         return inputLine;
