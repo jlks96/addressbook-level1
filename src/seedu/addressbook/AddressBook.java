@@ -899,11 +899,11 @@ public class AddressBook {
      * @return encoded strings
      */
     private static ArrayList<String> encodePersonsToStrings(ArrayList<String[]> persons) {
-        final ArrayList<String> encoded = new ArrayList<>();
+        final ArrayList<String> encodedPersons = new ArrayList<>();
         for (String[] person : persons) {
-            encoded.add(encodePersonToString(person));
+            encodedPersons.add(encodePersonToString(person));
         }
-        return encoded;
+        return encodedPersons;
     }
 
     /*
