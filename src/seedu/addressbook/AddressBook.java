@@ -318,11 +318,11 @@ public class AddressBook {
         Path filePathToValidate;
         try {
             filePathToValidate = Paths.get(filePath);
+            return hasValidParentDirectory(filePathToValidate) && hasValidFileName(filePathToValidate);
         } catch (InvalidPathException ipe) {
             return false;
         }
-        return hasValidParentDirectory(filePathToValidate) && hasValidFileName(filePathToValidate);
-    }
+        }
 
     /**
      * Returns true if the file path has a parent directory that exists.
