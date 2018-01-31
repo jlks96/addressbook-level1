@@ -79,7 +79,7 @@ public class AddressBook {
     private static final String MESSAGE_INVALID_PROGRAM_ARGS = "Too many parameters! Correct program argument format:"
                                                             + LS + "\tjava AddressBook"
                                                             + LS + "\tjava AddressBook [custom storage file path]";
-    private static final String MESSAGE_INVALID_PERSON_DISPLAYED_INDEX = "The person index provided is invalid";
+    private static final String MESSAGE_INVALID_PERSON_INDEX = "The person index provided is invalid";
     private static final String MESSAGE_INVALID_STORAGE_FILE_CONTENT = "Storage file has invalid content";
     private static final String MESSAGE_PERSON_NOT_IN_ADDRESSBOOK = "Person could not be found in address book";
     private static final String MESSAGE_ERROR_CREATING_STORAGE_FILE = "Error: unable to create file: %1$s";
@@ -318,11 +318,11 @@ public class AddressBook {
         Path filePathToValidate;
         try {
             filePathToValidate = Paths.get(filePath);
+            return hasValidParentDirectory(filePathToValidate) && hasValidFileName(filePathToValidate);
         } catch (InvalidPathException ipe) {
             return false;
         }
-        return hasValidParentDirectory(filePathToValidate) && hasValidFileName(filePathToValidate);
-    }
+        }
 
     /**
      * Returns true if the file path has a parent directory that exists.
@@ -395,7 +395,8 @@ public class AddressBook {
      */
     private static String[] splitCommandWordAndArgs(String rawUserInput) {
         final String[] split =  rawUserInput.trim().split("\\s+", 2);
-        return split.length == 2 ? split : new String[] { split[0] , "" }; // else case: no parameters
+        final String[] noParamSplit = new String[] { split[0] , "" };
+        return split.length == 2 ? split : noParamSplit; // else case: no parameters
     }
 
     /**
@@ -486,7 +487,8 @@ public class AddressBook {
         final ArrayList<String[]> matchedPersons = new ArrayList<>();
         for (String[] person : getAllPersonsInAddressBook()) {
             final Set<String> wordsInName = new HashSet<>(splitByWhitespace(getNameFromPerson(person)));
-            if (!Collections.disjoint(wordsInName, keywords)) {
+            boolean isDisjoint = Collections.disjoint(wordsInName, keywords);
+            if (!isDisjoint) {
                 matchedPersons.add(person);
             }
         }
@@ -505,11 +507,12 @@ public class AddressBook {
         }
         final int targetVisibleIndex = extractTargetIndexFromDeletePersonArgs(commandArgs);
         if (!isDisplayIndexValidForLastPersonListingView(targetVisibleIndex)) {
-            return MESSAGE_INVALID_PERSON_DISPLAYED_INDEX;
+            return MESSAGE_INVALID_PERSON_INDEX;
         }
         final String[] targetInModel = getPersonByLastVisibleIndex(targetVisibleIndex);
-        return deletePersonFromAddressBook(targetInModel) ? getMessageForSuccessfulDelete(targetInModel) // success
-                                                          : MESSAGE_PERSON_NOT_IN_ADDRESSBOOK; // not found
+        return deletePersonFromAddressBook(targetInModel)
+                ? getMessageForSuccessfulDelete(targetInModel) // success
+                : MESSAGE_PERSON_NOT_IN_ADDRESSBOOK; // not found
     }
 
     /**
@@ -520,7 +523,7 @@ public class AddressBook {
      */
     private static boolean isDeletePersonArgsValid(String rawArgs) {
         try {
-            final int extractedIndex = Integer.parseInt(rawArgs.trim()); // use standard libraries to parse
+            final int extractedIndex = Integer.parseInt(rawArgs.trim());
             return extractedIndex >= DISPLAYED_INDEX_OFFSET;
         } catch (NumberFormatException nfe) {
             return false;
@@ -602,7 +605,9 @@ public class AddressBook {
         System.out.print(LINE_PREFIX + "Enter command: ");
         String inputLine = SCANNER.nextLine();
         // silently consume all blank and comment lines
-        while (inputLine.trim().isEmpty() || inputLine.trim().charAt(0) == INPUT_COMMENT_MARKER) {
+        boolean isEmptyLine = inputLine.trim().isEmpty();
+        boolean isCommentLine = inputLine.trim().charAt(0) == INPUT_COMMENT_MARKER;
+        while (isEmptyLine || isCommentLine) {
             inputLine = SCANNER.nextLine();
         }
         return inputLine;
@@ -794,11 +799,11 @@ public class AddressBook {
      * @return true if the given person was found and deleted in the model
      */
     private static boolean deletePersonFromAddressBook(String[] exactPerson) {
-        final boolean changed = ALL_PERSONS.remove(exactPerson);
-        if (changed) {
+        final boolean isChanged = ALL_PERSONS.remove(exactPerson);
+        if (isChanged) {
             savePersonsToFile(getAllPersonsInAddressBook(), storageFilePath);
         }
-        return changed;
+        return isChanged;
     }
 
     /**
@@ -894,11 +899,11 @@ public class AddressBook {
      * @return encoded strings
      */
     private static ArrayList<String> encodePersonsToStrings(ArrayList<String[]> persons) {
-        final ArrayList<String> encoded = new ArrayList<>();
+        final ArrayList<String> encodedPersons = new ArrayList<>();
         for (String[] person : persons) {
-            encoded.add(encodePersonToString(person));
+            encodedPersons.add(encodePersonToString(person));
         }
-        return encoded;
+        return encodedPersons;
     }
 
     /*
@@ -957,8 +962,8 @@ public class AddressBook {
     private static boolean isPersonDataExtractableFrom(String personData) {
         final String matchAnyPersonDataPrefix = PERSON_DATA_PREFIX_PHONE + '|' + PERSON_DATA_PREFIX_EMAIL;
         final String[] splitArgs = personData.trim().split(matchAnyPersonDataPrefix);
-        return splitArgs.length == 3 // 3 arguments
-                && !splitArgs[0].isEmpty() // non-empty arguments
+        return splitArgs.length == 3
+                && !splitArgs[0].isEmpty() 
                 && !splitArgs[1].isEmpty()
                 && !splitArgs[2].isEmpty();
     }
@@ -989,12 +994,12 @@ public class AddressBook {
 
         // phone is last arg, target is from prefix to end of string
         if (indexOfPhonePrefix > indexOfEmailPrefix) {
-            return removePrefixSign(encoded.substring(indexOfPhonePrefix, encoded.length()).trim(),
+            return removeParamPrefix(encoded.substring(indexOfPhonePrefix, encoded.length()).trim(),
                     PERSON_DATA_PREFIX_PHONE);
 
         // phone is middle arg, target is from own prefix to next prefix
         } else {
-            return removePrefixSign(
+            return removeParamPrefix(
                     encoded.substring(indexOfPhonePrefix, indexOfEmailPrefix).trim(),
                     PERSON_DATA_PREFIX_PHONE);
         }
@@ -1012,12 +1017,12 @@ public class AddressBook {
 
         // email is last arg, target is from prefix to end of string
         if (indexOfEmailPrefix > indexOfPhonePrefix) {
-            return removePrefixSign(encoded.substring(indexOfEmailPrefix, encoded.length()).trim(),
+            return removeParamPrefix(encoded.substring(indexOfEmailPrefix, encoded.length()).trim(),
                     PERSON_DATA_PREFIX_EMAIL);
 
         // email is middle arg, target is from own prefix to next prefix
         } else {
-            return removePrefixSign(
+            return removeParamPrefix(
                     encoded.substring(indexOfEmailPrefix, indexOfPhonePrefix).trim(),
                     PERSON_DATA_PREFIX_EMAIL);
         }
@@ -1146,13 +1151,26 @@ public class AddressBook {
     /**
      * Removes sign(p/, d/, etc) from parameter string
      *
-     * @param s  Parameter as a string
-     * @param sign  Parameter sign to be removed
+     * @param param  Parameter as a string
+     * @param prefix  Parameter sign to be removed
      * @return  string without the sign
      */
-    private static String removePrefixSign(String s, String sign) {
-        return s.replace(sign, "");
+    private static String removeParamPrefix(String param, String prefix) {
+        return removePrefix(param, prefix);
     }
+
+
+    /**
+     * Removes prefix from the given fullString if prefix occurs at the start of the string.
+     */
+    private static String removePrefix  (String fullString, String prefix) {
+        if (fullString.startsWith(prefix)) {
+            return fullString.replace(prefix, "");
+        } else {
+            return fullString;
+        }
+    }
+
 
     /**
      * Splits a source string into the list of substrings that were separated by whitespace.
